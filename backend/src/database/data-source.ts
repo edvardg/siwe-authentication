@@ -7,7 +7,7 @@ export const dataSourceOptions: DataSourceOptions = {
   type: 'sqlite',
   database: process.env.TYPEORM_DATABASE,
   entities: ['dist/**/*.entity.{js,ts}'],
-  migrations: ['dist/src/database/migrations/*{.ts,.js}'],
+  migrations: ['dist/database/migrations/*{.ts,.js}'],
   migrationsRun: false,
 };
 

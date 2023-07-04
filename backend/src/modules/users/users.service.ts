@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { SiweMessage, generateNonce } from 'siwe';
-import { FailedToCreateUserException, FailedToGetUserException } from '../../common/exceptions';
+import { FailedToCreateUserException, NoUserFoundException } from '../../common/exceptions';
 import { UserEntity } from './entities/user.entity';
 import { SignupUserDto, SignInUserDto, TokenDto, UserDto, NonceDto } from './dto';
 
@@ -37,7 +37,7 @@ export class UsersService {
     const user = await this.userRepository.findOneBy({ ethereumAddress });
     if (!user) {
       this.logger.error(`Failed to sign in, no user with ethereumAddress: ${ethereumAddress}`);
-      throw new FailedToGetUserException(`No user with ethereumAddress: ${ethereumAddress}`);
+      throw new NoUserFoundException(`No user with ethereumAddress: ${ethereumAddress}`);
     }
 
     const payload = {
@@ -66,7 +66,7 @@ export class UsersService {
       this.logger.error(
         `Failed to get user profile, no user with ethereumAddress: ${ethereumAddress}, username: ${username}`,
       );
-      throw new FailedToGetUserException(
+      throw new NoUserFoundException(
         `No user with ethereumAddress: ${ethereumAddress}, username: ${username}`,
       );
     }

@@ -7,11 +7,12 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  Param,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards';
 import { UsersService } from './users.service';
-import { UserEntity } from './entities/user.entity';
+import { UserEntity } from './entities';
 import { SignupUserDto, SignInUserDto, TokenDto, UserDto, NonceDto } from './dto';
 
 @Controller('user')
@@ -53,9 +54,9 @@ export class UsersController {
     type: NonceDto,
     description: 'Successfully retrieved nonce value',
   })
-  @Get('nonce')
-  getNonce() {
-    return this.userService.getNonce();
+  @Get('nonce/:ethereumAddress')
+  getNonce(@Param('ethereumAddress') ethereumAddress: string) {
+    return this.userService.getNonce(ethereumAddress);
   }
 
   @HttpCode(HttpStatus.OK)

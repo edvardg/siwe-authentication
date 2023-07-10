@@ -3,9 +3,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { SiweMessage, generateNonce } from 'siwe';
-import { FailedToCreateUserException, NoUserFoundException } from '../../common/exceptions';
-import { UserEntity } from './entities/user.entity';
-import { SignupUserDto, SignInUserDto, TokenDto, UserDto, NonceDto } from './dto';
+import {
+  FailedToCreateUserException,
+  NoNonceFoundException,
+  NoUserFoundException,
+} from '../../common/exceptions';
+import { UserEntity, NonceEntity } from './entities';
+import {
+  SignupUserDto,
+  SignInUserDto,
+  TokenDto,
+  UserDto,
+  NonceDto,
+  MessageValidationDto,
+} from './dto';
 
 @Injectable()
 export class UsersService {
@@ -14,10 +25,14 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
+    @InjectRepository(NonceEntity)
+    private nonceRepository: Repository<NonceEntity>,
     private jwtService: JwtService,
   ) {}
 
   async createUser(createUserDto: SignupUserDto): Promise<UserEntity> {
+    await this.verifyUserMessage(createUserDto);
+
     try {
       const newUser = this.userRepository.create(createUserDto);
       await this.userRepository.save(newUser);
@@ -51,8 +66,18 @@ export class UsersService {
     };
   }
 
-  getNonce(): NonceDto {
-    return { nonce: generateNonce() };
+  async getNonce(ethereumAddress: string): Promise<NonceDto> {
+    const nonce = generateNonce();
+
+    await this.nonceRepository.upsert(
+      {
+        ethereumAddress,
+        nonce,
+      },
+      ['ethereumAddress'],
+    );
+
+    return { nonce };
   }
 
   async getProfile(user: UserEntity): Promise<UserDto> {
@@ -77,12 +102,17 @@ export class UsersService {
     };
   }
 
-  private async verifyUserMessage(signInUserDto: SignInUserDto): Promise<boolean> {
-    const { message, signature } = signInUserDto;
+  private async verifyUserMessage(data: MessageValidationDto): Promise<boolean> {
+    const { message, signature, ethereumAddress } = data;
+
+    const userNonce = await this.nonceRepository.findOneBy({ ethereumAddress });
+    if (!userNonce) {
+      throw new NoNonceFoundException(`No nonce found for ethereumAddress: ${ethereumAddress}`);
+    }
 
     try {
       const siweMessage = new SiweMessage(message);
-      await siweMessage.verify({ signature });
+      await siweMessage.verify({ signature, nonce: userNonce.nonce });
 
       return true;
     } catch (err) {

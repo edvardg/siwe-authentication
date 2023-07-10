@@ -6,7 +6,9 @@ import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { BrowserProvider } from 'ethers';
 import { useRouter } from 'next/navigation';
+import { createSiweMessageAndSign, getSignerAddress } from "@/app/components/auth/SiweHelper";
 
+const provider = new BrowserProvider(window.ethereum);
 
 const validationSchema = Yup.object({
     username: Yup.string()
@@ -28,16 +30,12 @@ const SignUpForm: FC = () => {
     const { push } = useRouter();
     const [ethereumAddress, setEthereumAddress] = useState<string>('');
 
-    const ethereum = window && window.ethereum;
-    const provider = new BrowserProvider(ethereum);
-
     useEffect(() => {
         
         const getEthereumAddress = async () => {
             provider.send('eth_requestAccounts', [])
-            .then((accounts) => {
-                const ethereumAddress = accounts[0];
-                setEthereumAddress(ethereumAddress)
+            .then(async () => {
+                setEthereumAddress(await getSignerAddress(provider));
             })
             .catch(() => console.log('user rejected request'));
         };
@@ -53,6 +51,8 @@ const SignUpForm: FC = () => {
     }, []);
 
     const handleSubmit = async (values: FormValues) => {
+        const { message, signature } = await createSiweMessageAndSign(provider, 'Sign up with Ethereum in the app.');
+
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API}user/signup`, {
               method: 'POST',
@@ -61,7 +61,9 @@ const SignUpForm: FC = () => {
               },
               body: JSON.stringify({
                 username: values.username,
-                ethereumAddress: ethereumAddress
+                ethereumAddress: ethereumAddress,
+                signature: signature,
+                message: message
               }),
             });
         

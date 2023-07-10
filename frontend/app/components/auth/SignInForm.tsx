@@ -2,24 +2,20 @@
 
 import React, { FC, useEffect, useState } from 'react';
 import Link from "next/link";
-import { SiweMessage } from 'siwe';
 import { BrowserProvider } from 'ethers';
+import { createSiweMessageAndSign, getSignerAddress } from "@/app/components/auth/SiweHelper";
 
-const domain = window.location.host;
-const origin = window.location.origin;
+const provider = new BrowserProvider(window.ethereum);
 
 const SignInForm: FC = () => {
     const [ethereumAddress, setEthereumAddress] = useState<string>('');
-    const provider = new BrowserProvider(window.ethereum);
-
 
     useEffect(() => {
 
         const getEthereumAddress = async () => {
             provider.send('eth_requestAccounts', [])
-            .then((accounts) => {
-                const ethereumAddress = accounts[0];
-                setEthereumAddress(ethereumAddress)
+            .then(async () => {
+                setEthereumAddress(await getSignerAddress(provider));
             })
             .catch(() => console.log('user rejected request'));
         };
@@ -34,38 +30,11 @@ const SignInForm: FC = () => {
 
     }, []);
 
-    async function createSiweMessage(address: string, statement: string) {
-        
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API}user/nonce`);
-        const { nonce } = await res.json();
-
-        const message = new SiweMessage({
-          domain,
-          address,
-          statement,
-          uri: origin,
-          version: '1',
-          chainId: 1,
-          nonce,
-        });
-
-      
-        return message.prepareMessage();
-    }
-      
-
     const signIn = async (e: React.FormEvent<HTMLFormElement>) => {
         
         e.preventDefault();
-        
-        const signer = await provider.getSigner();
 
-        const message = await createSiweMessage(
-            await signer.getAddress(),
-            'Sign in with Ethereum to the app.'
-        );
-
-        const signature = await signer.signMessage(message);
+        const { message, signature } = await createSiweMessageAndSign(provider, 'Sign in with Ethereum to the app.');
 
         try {
 
